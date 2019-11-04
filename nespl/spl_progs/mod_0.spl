@@ -1,0 +1,267 @@
+//----------------------------RESOURCE MANAGER MODULE-----------------------------------------
+//------------------------------MODULE 0-----------------------------------------------
+
+alias functionNum R1;
+alias currentPID R2;
+alias retval R0;
+
+if (functionNum == ACQUIRE_BUFFER) then
+
+	alias buffno R2;
+	alias curPID R3;
+
+	//until buffer buffer becomes free
+	//wait list the current process
+	//for the buffer
+	//context switch
+	while ([BUFFER_TABLE + buffno*4 + 2] != -1) do
+		[PROCESS_TABLE + curPID*16 + 4] = WAIT_BUFFER;
+		[PROCESS_TABLE + curPID*16 + 5] = buffno;
+		backup;
+		call MOD_5;
+		restore;
+	endwhile;
+
+	//buffer becomes free
+	//lock the buffer
+	[BUFFER_TABLE + buffno*4 + 2] = curPID;
+	return;
+
+endif;
+
+if (functionNum == RELEASE_BUFFER) then
+
+	alias buffno R2;
+	alias curPID R3;
+
+	//calling process didn't locked the buffer
+	if ([BUFFER_TABLE + buffno*4 + 2] != curPID) then
+		R0 = -1;
+		return;
+	endif;
+
+	//unlock the buffer
+	[BUFFER_TABLE + buffno*4 + 2] = -1;
+		
+	//ready the processes 
+	//waiting for this buffer
+	alias i R4;
+	i = 0;
+	while (i < MAX_PROC_NUM) do
+		if (([PROCESS_TABLE + i*16 + 4] == WAIT_BUFFER) && ([PROCESS_TABLE + i*16 + 5] == buffno)) then
+			[PROCESS_TABLE + i*16 + 4] = READY;
+		endif;
+		i = i+1;
+	endwhile;
+
+	R0 = 0;
+	return;
+
+endif;
+
+if (functionNum == ACQUIRE_DISK) then
+
+	//check the status of disk 
+	//if not free 
+	//set the state of current process to WAIT_DISK
+	//call scheduler
+	while ([DISK_STATUS_TABLE] == 1) do
+
+		[PROCESS_TABLE + (currentPID * 16) + 4] = WAIT_DISK;
+
+		backup;
+		call MOD_5;
+		restore;
+
+	endwhile;
+
+	//Disk is now free
+	//This process has been scheduled
+
+	//LOCK the disk
+	[DISK_STATUS_TABLE] = 1;
+	[DISK_STATUS_TABLE + 4] = currentPID;
+
+	return;
+
+endif;
+
+if (functionNum == ACQUIRE_INODE) then
+
+	alias inodeindex R2;
+	alias curPID R3;
+	
+	//busy loop
+	//inode acquired by any other process
+	while ([FILE_STATUS_TABLE + 4*inodeindex] != -1) do
+		//wait list the process
+		[PROCESS_TABLE + curPID*16 + 4] = WAIT_FILE;
+		[PROCESS_TABLE + curPID*16 + 5] = inodeindex;
+		//context switch
+		backup;
+		call MOD_5;
+		restore;
+	endwhile;
+
+	//inode free
+
+	//some other process deleted the inode
+	//by the time this process
+	//was waiting
+	if ([INODE_TABLE + inodeindex*16 + 1] == -1) then
+		R0 = -1;
+		return;
+	endif;
+
+	//lock the inode
+	[FILE_STATUS_TABLE + 4*inodeindex] = curPID;
+	R0 = 0;
+	return;
+
+endif;
+
+if (functionNum == RELEASE_INODE) then
+
+	alias inodeindex R2;
+	alias curPID R3;
+
+	//pthis process has not locked the inode
+	if ([FILE_STATUS_TABLE + 4*inodeindex] != curPID) then
+		R0 = -1;
+		return;
+	endif;
+
+	//free the inode
+	[FILE_STATUS_TABLE + 4*inodeindex] = -1;
+	
+	alias i R5;
+	i = 0;
+
+	//wake up all the processes 
+	//waiting for the inode
+	while (i < MAX_PROC_NUM) do
+		if (([PROCESS_TABLE + i*16 + 4] == WAIT_FILE) && ([PROCESS_TABLE + i*16 + 5] == inodeindex)) then
+			[PROCESS_TABLE + i*16 + 4] = READY;
+		endif;
+		i = i+1;
+	endwhile;
+	
+	R0 = 0;
+	return;
+
+endif;
+
+if (functionNum == ACQUIRE_SEMAPHORE) then
+
+	//don't know the use of passed pid
+	//as argument
+
+	alias i R3;
+	i = 0;
+	
+	//find the index of a free entry in semaphore table
+	while (i < MAX_SEM_COUNT) do
+	
+		//free entry is indicated by a proccess count of 0
+		if ([SEMAPHORE_TABLE + i+1] == 0) then
+			
+			//set the process count to 1
+			[SEMAPHORE_TABLE + i+1] = 1;
+			//locking pid to -1
+			[SEMAPHORE_TABLE + i] = -1;
+			//success
+			//return semaphore table index
+			retval = i/4;
+			return;
+
+		endif;
+		i = i+4;	
+	
+	endwhile;
+	
+	//if no free entry
+	retval = -1;
+	return;
+
+endif;
+
+if (functionNum == RELEASE_SEMAPHORE) then
+
+	alias semID R2;
+	alias curPID R3;
+	
+	//check the locking PID in the semaphore table
+	if ([SEMAPHORE_TABLE + 4*semID] == curPID) then
+
+		//set locking pid to -1
+		[SEMAPHORE_TABLE + 4*semID] = -1;
+
+		alias i R4;
+		i=0;
+		//wake up processes blocked by the semaphore
+		while (i < 16) do
+
+			if (([PROCESS_TABLE + i*16 + 4] == WAIT_SEMAPHORE) && ([PROCESS_TABLE + i*16 + 5] == semID)) then
+				[PROCESS_TABLE + i*16 + 4] = READY;
+			endif;
+			i = i+1;	
+	
+		endwhile;
+
+	endif;
+
+	//deccrement the process count of the semaphore
+	[SEMAPHORE_TABLE + 4*semID + 1] = [SEMAPHORE_TABLE + 4*semID + 1] - 1;
+	
+	return;
+
+endif;
+
+if (functionNum == 8) then
+//Acquire Terminal
+
+	while ([TERMINAL_STATUS_TABLE] == 1) do
+		[PROCESS_TABLE + currentPID*16 + 4] = WAIT_TERMINAL;		//change the state of the current process in its process table entry to WAIT_TERMINAL
+		backup;
+
+		call MOD_5;
+
+		restore;
+
+	endwhile;
+
+	[TERMINAL_STATUS_TABLE] = 1;			//status field to 1
+	[TERMINAL_STATUS_TABLE + 1] = currentPID;
+
+	return;	
+
+endif;
+ 
+if(functionNum == 9) then
+//Release Terminal
+
+	if ([TERMINAL_STATUS_TABLE + 1] != currentPID) then 
+		retval = -1;
+		return;
+
+	endif;	
+
+	[TERMINAL_STATUS_TABLE] = 0;
+
+	alias tempid R1;
+	tempid = 0;
+
+	while (tempid < 16) do
+		if ([PROCESS_TABLE + tempid*16 + 4] == WAIT_TERMINAL) then
+			[PROCESS_TABLE + tempid*16 + 4] = READY;
+		endif;
+		tempid = tempid + 1;
+	endwhile;
+
+	retval = 0;
+
+	return;
+
+endif;
+
+//---------------------------------------modification uptil STAGE 14---------------------------------------------------------------

@@ -1,0 +1,197 @@
+//-------------------------MEMORY MANAGER MODULE-------------------------------------
+//---------------------------MODULE 2---------------------------------------------
+
+alias functionNum R1;
+
+if (functionNum == GET_FREE_PAGE) then
+
+	//increment wait_mem_count
+	[SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
+
+	//while mem_free_count ----> 0
+	while ([SYSTEM_STATUS_TABLE + 2] == 0) do
+	
+		[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 4] = WAIT_MEM;		
+		backup;
+		call MOD_5;
+		restore;
+
+	endwhile;
+	
+	//There is a free page available
+	//decrement wait_mem_count
+	[SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;
+	
+	//decrement mem_free_count
+	[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+	
+	multipush (R7);
+	alias i R7;
+	i = 76;
+	while (i < 128) do
+			
+		if ([MEMORY_FREE_LIST + i] == 0) then
+
+			[MEMORY_FREE_LIST + i] = 1;
+			break;
+
+		endif;
+		i = i + 1;
+	
+	endwhile; 	
+
+	R0 = i;					//return free page number
+	
+	multipop (R7);
+	return;
+
+endif;
+
+if (functionNum == RELEASE_PAGE) then
+
+	//alias pagenum R2;
+	//decremnet the entry in memory free list of the corresponding page
+	[MEMORY_FREE_LIST + R2] = [MEMORY_FREE_LIST + R2] - 1; 
+
+	//if page becomes free then increment the mem_free_count , and wake up all processes with WAIT_MEM
+	if ([MEMORY_FREE_LIST + R2] == 0) then
+
+		//increment the memory free count
+		[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+		
+		alias i R3;
+		i = 0;
+		while (i < 16) do
+			
+			if ([PROCESS_TABLE + i*16 + 4] == WAIT_MEM) then
+
+				[PROCESS_TABLE + i*16 + 4] = READY;
+			
+			endif;
+			i = i + 1;
+
+		endwhile;		
+
+	endif;
+
+	return;
+
+endif;
+
+if (functionNum == GET_FREE_BLOCK) then
+
+	alias freeblock R5;
+	freeblock = DISK_FREE_AREA;
+
+	//loop through entries in the disk free list
+	//from disk_free_area to disk_swap_area-1
+	while (freeblock < DISK_SWAP_AREA) do
+	
+		if ([DISK_FREE_LIST + freeblock] == 0) then
+			R0 = freeblock;
+			//set to 1
+			[DISK_FREE_LIST + freeblock] = 1;
+			break;
+		endif;
+		freeblock = freeblock+1;	
+	
+	endwhile;
+
+	if (freeblock >= DISK_SWAP_AREA) then
+		R0 = -1;
+	endif;
+	return;
+
+endif;
+
+if (functionNum == RELEASE_BLOCK) then
+	
+	alias blocknum R2;
+	alias curPID R3;
+
+	[DISK_FREE_LIST + blocknum] = [DISK_FREE_LIST + blocknum] - 1;
+
+	return;
+
+endif;
+
+if (functionNum == GET_CODE_PAGE) then
+
+	alias blocknum R2;
+	alias curPID R3;	
+	alias procs_id R4;
+	alias itr R5;
+
+	//If the required code page is already loaded by some other process,
+	//we simply increment the share count in the Mem Free list
+	procs_id = 1;
+	while (procs_id < 16) do	//loop through all processes
+		
+		itr = 4;
+		while (itr < 8) do	//loop through each code page
+
+			//if some process found with same blocknum
+			if ([DISK_MAP_TABLE + procs_id*10 + itr] == blocknum) then
+				
+				//if this process has valid page table entry,
+				//corresponding to the required page
+				//i.e. this process uses the same code page 
+				if ([PAGE_TABLE_BASE + procs_id*20 + itr*2] != -1) then
+					
+					alias mem_pg R6;
+					mem_pg = [PAGE_TABLE_BASE + procs_id*20 + itr*2];
+
+					//increment the share count
+					//of corresponding memory page
+					[MEMORY_FREE_LIST + mem_pg] = [MEMORY_FREE_LIST + mem_pg] + 1;
+					R0 = mem_pg;	
+					return;		
+
+				endif;
+		
+			endif;
+			itr = itr + 1;
+
+		endwhile;
+		procs_id = procs_id + 1;
+	
+	endwhile;
+
+	//The code page is not in memory,
+	//and has to be loaded from disk.
+
+
+	//Get a free memory page
+	R1 = GET_FREE_PAGE;
+	call MOD_2;
+
+	//Load the disk into memory page
+	R1 = DISK_LOAD;
+	R4 = blocknum;
+	R2 = curPID;
+	R3 = R0;
+	call MOD_4;		
+
+	return;
+
+endif;
+
+if (functionNum == GET_SWAP_BLOCK) then
+
+	alias blocknum R5;
+
+	blocknum = DISK_SWAP_AREA;
+
+	while (blocknum < DISK_SIZE) do
+		if ([DISK_FREE_LIST + blocknum] == 0) then
+			[DISK_FREE_LIST + blocknum] = 1;
+			R0 = blocknum;
+			return;
+		endif;
+		blocknum = blocknum + 1;
+	endwhile;
+
+	R0 = -1;
+	return;
+
+endif;

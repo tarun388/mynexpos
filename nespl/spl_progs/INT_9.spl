@@ -1,0 +1,172 @@
+//----------------------------------INTERRUPT 9--------------------------------
+
+//------------------------------EXEC Sysyem Call---------------------------------
+
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 13] = SP;
+
+alias userSP R0;
+userSP = SP;
+
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11] * 512 - 1;
+
+//MODE FLAG--->9 exec syscall
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 9] = 9;
+
+alias filename R1;
+filename = [ [PTBR + 2 * (userSP-4) / 512] * 512 + (userSP-4) % 512 ];
+
+alias i R2;
+i = 1;
+
+//search the copy of inode table for the file 
+while (i < MAX_FILE_NUM) do
+
+	if ( [INODE_TABLE + (i * 16) + 1] == filename && [INODE_TABLE + (i * 16)] == EXEC ) then
+		break;
+	endif;
+	i = i + 1;
+
+endwhile; 
+
+alias retvaladdr R3;
+retvaladdr = [PTBR + 2*((userSP-1)/512)]*512 + ((userSP-1)%512);
+
+if (i >= MAX_FILE_NUM) then
+	
+	//FILE NOT FOUND
+	[retvaladdr] = -1;
+	[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;		//MODE FLAG-->0
+	SP = userSP;
+	ireturn;
+
+endif;
+
+
+//deallocate resources and pages of current process
+backup;
+R1 = EXIT_PROCESS;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;				//call exit function in process manager module
+restore;	
+
+alias UAPN R4;
+UAPN = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11];
+
+//increment memory free list corresponding to user area page
+[MEMORY_FREE_LIST + UAPN] = [MEMORY_FREE_LIST + UAPN] + 1;
+
+//decrement MEM_FREE_COUNT
+[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+
+//initialize SP to kernel stack of new process
+SP = UAPN * 512 - 1;
+
+//state of the new process---> RUNNING
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 4] = RUNNING;
+
+//inode index field 
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 7] = i;
+
+//-------------PAGE TABLE SETUP------------
+
+PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1] * 20;
+
+//set the library
+[PTBR + 0] = 63;
+[PTBR + 1] = "0100";
+[PTBR + 2] = 64;
+[PTBR + 3] = "0100";
+
+//----STACK 1--------
+backup;
+R1 = GET_FREE_PAGE;
+call MOD_2;
+[PTBR + 16] = R0;
+[PTBR + 17] = "0110";
+restore;
+
+//----STACK 2--------
+backup;
+R1 = GET_FREE_PAGE;
+call MOD_2;
+[PTBR + 18] = R0;
+[PTBR + 19] = "0110";
+restore;
+
+//----HEAP 1---------
+//Invalidate only
+[PTBR + 4] = -1;
+[PTBR + 5] = "0000";
+
+//----HEAP 2---------
+//Invalidate only
+[PTBR + 6] = -1;
+[PTBR + 7] = "0000";
+
+//-----------validate code entries---------
+
+//Load only codepage 1
+//and validate the corresponding
+//page table
+if ([INODE_TABLE + i*16 + 8] != -1) then 
+	backup;
+	R1 = GET_CODE_PAGE;
+	R2 = [INODE_TABLE + i*16 + 8];
+	R3 = [SYSTEM_STATUS_TABLE + 1];
+	call MOD_2;
+	[PTBR + 8] = R0;
+	[PTBR + 9] = "0100";
+	restore;
+endif;
+
+//Invalidate rest of the code page
+//the corresponding page table entry
+	[PTBR + 10] = -1;
+	[PTBR + 11] = "0000"; 
+	[PTBR + 12] = -1;
+	[PTBR + 13] = "0000";
+	[PTBR + 14] = -1;
+	[PTBR + 15] = "0000";
+
+//initialize the disk map table------> -1
+alias j R5;
+j = 0;
+while (j < 10) do
+
+	[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + j] = -1;
+	j = j + 1;
+
+endwhile;
+
+//set the code pages in DISK_MAP_TABLE
+
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 4] = [INODE_TABLE + i*16 + 8];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 5] = [INODE_TABLE + i*16 + 9];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 6] = [INODE_TABLE + i*16 + 10];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 7] = [INODE_TABLE + i*16 + 11];
+
+//Initialize each entry in PER_PROCESS_TABLE present in last 16 words of user area page to -1
+//PER_PROCESS_TABLE is present
+//in last 16 word of 
+//user area page
+//having 8 entries
+//2 words each
+//so offset of 496
+
+i = 496;
+while (i <= 511) do
+	
+	[[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11]*512 + i] = -1;
+	i = i + 2;
+	
+endwhile;
+
+[[PTBR + 16] * 512] = [[PTBR + 8] * 512 + 1];		//ENTRY POINT
+
+SP = 8 * 512;
+
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 9] = 0;
+
+PTBR = PAGE_TABLE_BASE + (20 * [SYSTEM_STATUS_TABLE + 1]);
+
+ireturn;

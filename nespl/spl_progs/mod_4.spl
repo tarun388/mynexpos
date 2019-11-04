@@ -1,0 +1,117 @@
+//----------------------------Device Manager Module-------------------------------
+//------------------------------Module 4------------------------------------------
+
+alias functionNum R1;
+alias currentPID R2;
+
+if (functionNum == DISK_STORE) then
+
+	alias pagenum R3;
+	alias blocknum R4;
+
+	backup;
+	R1 = ACQUIRE_DISK;
+	R2 = currentPID;
+	call MOD_0;
+	restore;
+
+	//store bit
+	[DISK_STATUS_TABLE + 1] = 1;
+	//page number
+	[DISK_STATUS_TABLE + 2] = pagenum;
+	//block number
+	[DISK_STATUS_TABLE + 3] = blocknum;
+
+	store(pagenum,blocknum);
+	
+	[PROCESS_TABLE + currentPID*16 + 4] = WAIT_DISK;
+
+	backup;
+	call MOD_5;
+	restore;
+
+	return;
+
+endif;
+
+if (functionNum == DISK_LOAD) then
+	
+	alias pageNum R3;
+	alias BlockNum R4;
+
+	//Acquire the disk
+	backup;
+	R1 = ACQUIRE_DISK;
+	R2 = currentPID;
+	call MOD_0;
+	restore;
+
+	//call returns here thus disk has been acquired by this process and this process has been scheduled
+	
+	[DISK_STATUS_TABLE + 1] = 0;		//LOAD bit set in disk status table
+	[DISK_STATUS_TABLE + 2] = pageNum;	//Page Number set
+	[DISK_STATUS_TABLE + 3] = BlockNum;	//Block number set
+
+	load(pageNum,BlockNum);
+
+	[PROCESS_TABLE + (currentPID * 16) + 4] = WAIT_DISK;
+
+	backup;
+	call MOD_5;
+	restore;
+
+	return;
+
+endif;
+
+if (functionNum == TERMINAL_WRITE) then
+	
+	backup;
+	R1 = ACQUIRE_TERMINAL;
+	R2 = currentPID;
+	call MOD_0;
+	restore;
+
+	alias word R3;
+	print (word);		
+
+	backup;
+	R1 = RELEASE_TERMINAL;
+	R2 = currentPID;
+	call MOD_0;
+	restore;	
+
+	return;
+
+endif;
+
+//---------------------modification uptil STAGE 15-------------------------
+
+//--------------------modification in STAGE 16----------------------------
+
+if (functionNum == TERMINAL_READ) then
+
+	backup;
+	R1 = ACQUIRE_TERMINAL;			//Acquire Terminal----> 8
+	R2 = currentPID;		//Current PID
+	call MOD_0;
+	restore;
+
+	read;					//read instruction
+
+	//state of the current process to WAIT_TERMINAL
+	[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 4] = WAIT_TERMINAL;
+
+	backup;
+	call MOD_5;	
+	restore;
+
+	alias phy_word_addr R4;
+	phy_word_addr = [PTBR + ((R3)/512)*2]*512 + (R3) % 512;
+	[phy_word_addr] = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 8];
+
+	return;
+
+endif;
+
+//----------------------modification uptil STAGE 16----------------------
