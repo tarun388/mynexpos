@@ -8,7 +8,7 @@ alias sys_call_num R7;
 alias retaddrs R8;
 alias filename R9;
 
-curPID = [SYSTEM_STATUS_TABLE + 1];
+curPID = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 
 userSP = SP;
 [PROCESS_TABLE + curPID*16 + 13] = SP;
@@ -28,6 +28,11 @@ phy_pg_num = [PTBR + 2*(userSP-4)/512];
 offset = (userSP-4)%512;
 filename = [phy_pg_num*512 + offset];
 
+backup;
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;
+restore;
+
 if (sys_call_num == INT_OPEN) then
 
 	alias filedesc R10;
@@ -44,6 +49,12 @@ if (sys_call_num == INT_OPEN) then
 	endwhile;
 
 	if (filedesc >= 8) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//Process has reached its limit of resources
 		[retaddrs] = -3;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -58,6 +69,12 @@ if (sys_call_num == INT_OPEN) then
 	multipop(R5,R6,R7,R8,R9,R10,R11);
 
 	if ((R0 == -1) || (R0 == -2)) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//-1 data file error i.e. given exec file
 		//-2 system has reached its limit of open files
 		[retaddrs] = R0;	
@@ -85,6 +102,12 @@ if (sys_call_num == INT_CLOSE) then
 	UAPN = [PROCESS_TABLE + curPID*16 + 11];
 
 	if ((filedesc < 0) || (filedesc > 7) || ([UAPN*512 + 496 + filedesc*2] != FILE)) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//invalid file descriptor
 		[retaddrs] = -1;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -130,6 +153,12 @@ if (sys_call_num == INT_SEEK) then
 	UAPN = [PROCESS_TABLE + (curPID*16) + 11];
 	
 	if ((filedesc < 0) || (filedesc > 7) || ([UAPN*512 + 496 + filedesc*2] != FILE)) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//invalid file descriptor
 		[retaddrs] = -1;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -149,6 +178,12 @@ if (sys_call_num == INT_SEEK) then
 	multipop(R5,R6,R7,R8,R9,R10,R11,R12);
 	
 	if (R0 == -1) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//couldn't acquire inode
 		[retaddrs] = -1;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -173,6 +208,12 @@ if (sys_call_num == INT_SEEK) then
 		call MOD_0;
 		restore;
 	
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//new lseek becomes negative
 		[retaddrs] = -2;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -202,6 +243,12 @@ if (sys_call_num == INT_SEEK) then
 	[retaddrs] = 0;
 
 endif;
+
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
 
 [PROCESS_TABLE + curPID*16 + 9] = 0;
 

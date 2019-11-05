@@ -12,7 +12,7 @@ if (functionNum == SWAP_OUT) then
 	//choose a process to swap out
 	//other than idle, init, shell
 	swap_pid = 3;
-	while (swap_pid < MAX_PROC_NUM) do
+	while (swap_pid < MAX_PROC_NUM-2) do
 		if ([PROCESS_TABLE + swap_pid*16 + 6] == 0) then
 			//find a non swapped process
 			if ([PROCESS_TABLE + swap_pid*16 + 4] == WAIT_PROCESS) then
@@ -23,7 +23,7 @@ if (functionNum == SWAP_OUT) then
 		swap_pid = swap_pid+1;
 	endwhile;
 
-	if (swap_pid >= MAX_PROC_NUM) then
+	if (swap_pid >= MAX_PROC_NUM-2) then
 		//there are no swapped process
 		//in the wait process state
 		//find process in wait semaphore
@@ -31,7 +31,7 @@ if (functionNum == SWAP_OUT) then
 		//choose a process to swap out
 		//other than idle, init, shell
 		swap_pid = 3;
-		while (swap_pid < MAX_PROC_NUM) do
+		while (swap_pid < MAX_PROC_NUM-2) do
 			if ([PROCESS_TABLE + swap_pid*16 + 6] == 0) then
 				//find a non swapped process
 				if ([PROCESS_TABLE + swap_pid*16 + 4] == WAIT_SEMAPHORE) then
@@ -43,7 +43,7 @@ if (functionNum == SWAP_OUT) then
 		endwhile;
 	endif;
 
-	if (swap_pid >= MAX_PROC_NUM) then
+	if (swap_pid >= MAX_PROC_NUM-2) then
 		//there are no swapped process
 		//in the wait process state
 		//and wait semaphore state
@@ -54,7 +54,7 @@ if (functionNum == SWAP_OUT) then
 		alias req_pid R8;
 		req_pid = 3;
 		high_tick = -1;
-		while (req_pid < MAX_PROC_NUM) do
+		while (req_pid < MAX_PROC_NUM-2) do
 			procs_state = [PROCESS_TABLE + req_pid*16 + 4];
 			if ([PROCESS_TABLE + req_pid*16 + 6] == 0) then
 				//find a non swapped process
@@ -70,7 +70,7 @@ if (functionNum == SWAP_OUT) then
 		endwhile;
 	endif;
 
-	if (swap_pid >= MAX_PROC_NUM) then
+	if (swap_pid >= MAX_PROC_NUM-2) then
 		//no such process exist
 		[SYSTEM_STATUS_TABLE + 5] = 0;
 		return;
@@ -187,7 +187,7 @@ if (functionNum == SWAP_IN) then
 
 	high_tick = -1;
 	pid = 3;
-	while (pid < MAX_PROC_NUM) do
+	while (pid < MAX_PROC_NUM-2) do
 		if (([PROCESS_TABLE + pid*16 + 6] == 1) ) then
 			if ([PROCESS_TABLE + pid*16] > high_tick) then
 				high_tick = [PROCESS_TABLE + pid*16];

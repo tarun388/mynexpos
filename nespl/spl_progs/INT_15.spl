@@ -40,6 +40,12 @@ if ((curPID != 2) || ([PROCESS_TABLE + curPID*16 + 3] != 1)) then
 	ireturn;
 endif;
 
+//secondary core turned off
+reset;
+
+//reset scheduler lock
+[SCHED_LOCK] = 0;
+
 backup;
 R1 = KILL_ALL;
 R2 = curPID;

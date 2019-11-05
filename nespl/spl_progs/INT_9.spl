@@ -2,15 +2,20 @@
 
 //------------------------------EXEC Sysyem Call---------------------------------
 
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 13] = SP;
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 13] = SP;
 
 alias userSP R0;
 userSP = SP;
 
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11] * 512 - 1;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 11] * 512 - 1;
+
+backup;
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;
+restore;
 
 //MODE FLAG--->9 exec syscall
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 9] = 9;
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 9] = 9;
 
 alias filename R1;
 filename = [ [PTBR + 2 * (userSP-4) / 512] * 512 + (userSP-4) % 512 ];
@@ -32,10 +37,15 @@ alias retvaladdr R3;
 retvaladdr = [PTBR + 2*((userSP-1)/512)]*512 + ((userSP-1)%512);
 
 if (i >= MAX_FILE_NUM) then
-	
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	restore;
+
 	//FILE NOT FOUND
 	[retvaladdr] = -1;
-	[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;		//MODE FLAG-->0
+	[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16) + 9] = 0;		//MODE FLAG-->0
 	SP = userSP;
 	ireturn;
 
@@ -45,12 +55,12 @@ endif;
 //deallocate resources and pages of current process
 backup;
 R1 = EXIT_PROCESS;
-R2 = [SYSTEM_STATUS_TABLE + 1];
+R2 = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 call MOD_1;				//call exit function in process manager module
 restore;	
 
 alias UAPN R4;
-UAPN = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11];
+UAPN = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 11];
 
 //increment memory free list corresponding to user area page
 [MEMORY_FREE_LIST + UAPN] = [MEMORY_FREE_LIST + UAPN] + 1;
@@ -62,14 +72,14 @@ UAPN = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11];
 SP = UAPN * 512 - 1;
 
 //state of the new process---> RUNNING
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 4] = RUNNING;
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 4] = RUNNING;
 
 //inode index field 
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 7] = i;
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 7] = i;
 
 //-------------PAGE TABLE SETUP------------
 
-PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1] * 20;
+PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 5*CORE + 1] * 20;
 
 //set the library
 [PTBR + 0] = 63;
@@ -112,7 +122,7 @@ if ([INODE_TABLE + i*16 + 8] != -1) then
 	backup;
 	R1 = GET_CODE_PAGE;
 	R2 = [INODE_TABLE + i*16 + 8];
-	R3 = [SYSTEM_STATUS_TABLE + 1];
+	R3 = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 	call MOD_2;
 	[PTBR + 8] = R0;
 	[PTBR + 9] = "0100";
@@ -133,17 +143,17 @@ alias j R5;
 j = 0;
 while (j < 10) do
 
-	[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + j] = -1;
+	[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 5*CORE + 1]*10 + j] = -1;
 	j = j + 1;
 
 endwhile;
 
 //set the code pages in DISK_MAP_TABLE
 
-[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 4] = [INODE_TABLE + i*16 + 8];
-[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 5] = [INODE_TABLE + i*16 + 9];
-[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 6] = [INODE_TABLE + i*16 + 10];
-[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 7] = [INODE_TABLE + i*16 + 11];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 5*CORE + 1]*10 + 4] = [INODE_TABLE + i*16 + 8];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 5*CORE + 1]*10 + 5] = [INODE_TABLE + i*16 + 9];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 5*CORE + 1]*10 + 6] = [INODE_TABLE + i*16 + 10];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 5*CORE + 1]*10 + 7] = [INODE_TABLE + i*16 + 11];
 
 //Initialize each entry in PER_PROCESS_TABLE present in last 16 words of user area page to -1
 //PER_PROCESS_TABLE is present
@@ -156,17 +166,23 @@ endwhile;
 i = 496;
 while (i <= 511) do
 	
-	[[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11]*512 + i] = -1;
+	[[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 11]*512 + i] = -1;
 	i = i + 2;
 	
 endwhile;
 
 [[PTBR + 16] * 512] = [[PTBR + 8] * 512 + 1];		//ENTRY POINT
 
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
+
 SP = 8 * 512;
 
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 9] = 0;
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1]*16) + 9] = 0;
 
-PTBR = PAGE_TABLE_BASE + (20 * [SYSTEM_STATUS_TABLE + 1]);
+PTBR = PAGE_TABLE_BASE + (20 * [SYSTEM_STATUS_TABLE + 5*CORE + 1]);
 
 ireturn;

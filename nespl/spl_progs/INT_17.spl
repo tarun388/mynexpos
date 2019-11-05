@@ -31,7 +31,11 @@ retaddrs = phy_pg_num*512 + offset;
 //login systemcall can only by executed by login process i.e. pid 1
 if (curPID != 1) then
 	backup;
-	R1 = 
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	restore;
+ 
 	[retaddrs] = -2;
 	[PROCESS_TABLE + curPID*16 + 9] = 0;
 	SP = userSP;
@@ -57,6 +61,12 @@ endwhile;
 	
 //no matching username
 if (userid >= MAX_USER_NUM) then
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	restore;
+
 	[retaddrs] = -1;
 	[PROCESS_TABLE + curPID*16 + 9] = 0;
 	SP = userSP;
@@ -68,6 +78,12 @@ encrypt password;
 
 //password check
 if ([USER_TABLE + userid*2 + 1] != password) then
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	restore;
+
 	[retaddrs] = -1;
 	[PROCESS_TABLE + curPID*16 + 9] = 0;
 	SP = userSP;
@@ -86,6 +102,12 @@ endif;
 //update system status table
 //userid
 [SYSTEM_STATUS_TABLE] = userid;
+
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
 
 //context switch
 backup;

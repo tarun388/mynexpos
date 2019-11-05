@@ -149,10 +149,19 @@ endwhile;
 
 //--------------------------------------------------------------------------
 
+alias i R1;
+
 //---------------------Initialising INIT------------------------
 
 PTBR = PAGE_TABLE_BASE + 20;
 PTLR = 10;
+
+i=0;
+while (i < 20) do
+	[PTBR + i] = -1;
+	[PTBR + i + 1] = "0000";
+	i = i+2;
+endwhile;
 
 //LIBRARY
 [PTBR+0] = 63;
@@ -160,21 +169,9 @@ PTLR = 10;
 [PTBR+2] = 64;
 [PTBR+3] = "0100";
 
-//HEAP
-[PTBR+4] = -1;
-[PTBR+5] = "0000";
-[PTBR+6] = -1;
-[PTBR+7] = "0000";
-
 //CODE
 [PTBR+8] = 65;
 [PTBR+9] = "0100";
-[PTBR+10] = -1;
-[PTBR+11] = "0000";
-[PTBR+12] = -1;
-[PTBR+13] = "0000";
-[PTBR+14] = -1;
-[PTBR+15] = "0000";
 
 //STACK
 [PTBR+16] = 66;
@@ -183,7 +180,7 @@ PTLR = 10;
 [PTBR+19] = "0000";
 
 [PROCESS_TABLE + 16 + 1] = 1;
-[PROCESS_TABLE + 16 + 3] = 0;		//temporary userid root
+[PROCESS_TABLE + 16 + 3] = 0;		//userid kernel
 [PROCESS_TABLE + 16 + 4] = CREATED;
 [PROCESS_TABLE + 16 + 11] = 77;		//UAPN
 [PROCESS_TABLE + 16 + 12] = 0;		//KPTR
@@ -194,7 +191,6 @@ PTLR = 10;
 [66*512] = [65*512+1];		//ENTRY POINT
 
 //Initialize Per Process Resource Table of INIT
-alias i R0;
 i = 496;
 
 while (i <= 511) do
@@ -204,19 +200,6 @@ while (i <= 511) do
 
 endwhile;
 
-//disk map table initialisation needed foe init process
-//Disk Map Table
-//i = 0;
-//while (i < 10) do
-
-//	[DISK_MAP_TABLE + 10 + i] = -1;
-//	i = i + 1;
-
-//endwhile;
-
-//[DISK_MAP_TABLE + 10 + 4] = 7;
-//[DISK_MAP_TABLE + 10 + 5] = 8;
-
 //------------------------------------------------------------------------
 
 //---------------------Initialising SHELL------------------------
@@ -224,27 +207,24 @@ endwhile;
 PTBR = PAGE_TABLE_BASE + 40;
 PTLR = 10;
 
+i=0;
+while (i < 20) do
+	[PTBR + i] = -1;
+	[PTBR + i + 1] = "0000";
+	i = i+2;
+endwhile;
+
 //LIBRARY
 [PTBR+0] = 63;
 [PTBR+1] = "0100";
 [PTBR+2] = 64;
 [PTBR+3] = "0100";
 
-//HEAP
-[PTBR+4] = -1;
-[PTBR+5] = "0000";
-[PTBR+6] = -1;
-[PTBR+7] = "0000";
-
 //CODE
 [PTBR+8] = 67;
 [PTBR+9] = "0100";
 [PTBR+10] = 68;
 [PTBR+11] = "0100";
-[PTBR+12] = -1;
-[PTBR+13] = "0000";
-[PTBR+14] = -1;
-[PTBR+15] = "0000";
 
 //STACK
 [PTBR+16] = 78;
@@ -272,65 +252,6 @@ while (i <= 511) do
 	i = i + 2;
 
 endwhile;
-
-//disk map table initialisation needed for shell process
-//Disk Map Table
-i = 0;
-while (i < 10) do
-
-	[DISK_MAP_TABLE + 20 + i] = -1;
-	i = i + 1;
-
-endwhile;
-
-[DISK_MAP_TABLE + 20 + 4] = 67;
-[DISK_MAP_TABLE + 20 + 5] = 68;
-
-//-----------------------------------------------------------------------
-
-//---------------------------IDLE2---------------------------------------
-
-PTBR = PAGE_TABLE_BASE + 140;
-PTLR = 10;
-
-//LIBRARY
-[PTBR+0] = -1;
-[PTBR+1] = "0000";
-[PTBR+2] = -1;
-[PTBR+3] = "0000";
-
-//HEAP
-[PTBR+4] = -1;
-[PTBR+5] = "0000";
-[PTBR+6] = -1;
-[PTBR+7] = "0000";
-
-//CODE
-[PTBR+8] = 69;
-[PTBR+9] = "0100";
-[PTBR+10] = -1;
-[PTBR+11] = "0000";
-[PTBR+12] = -1;
-[PTBR+13] = "0000";
-[PTBR+14] = -1;
-[PTBR+15] = "0000";
-
-//STACK
-[PTBR+16] = 83;
-[PTBR+17] = "0110";
-[PTBR+18] = -1;
-[PTBR+19] = "0000";
-
-[PROCESS_TABLE + 224 + 1] = 14;
-[PROCESS_TABLE + 224 + 3] = 0;
-[PROCESS_TABLE + 224 + 4] = RUNNING;
-[PROCESS_TABLE + 224 + 11] = 84;		//UAPN
-[PROCESS_TABLE + 224 + 12] = 0;		//KPTR
-[PROCESS_TABLE + 224 + 13] = 8*512;	//UPTR
-[PROCESS_TABLE + 224 + 14] = PTBR;	//PTBR
-[PROCESS_TABLE + 224 + 15] = PTLR;	//PTLR 
-
-[83*512] = [69*512+1];		//ENTRY POINT
 
 //-----------------------------------------------------------------------
 
@@ -440,7 +361,5 @@ endwhile;
 //initialize access lock table
 [KERN_LOCK] = 0;
 [SCHED_LOCK] = 0;
-
-start;
 
 return;

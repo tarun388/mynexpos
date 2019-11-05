@@ -8,7 +8,7 @@ alias retaddrs R7;
 alias filedescriptor R8;
 alias arg2 R9;
 
-curPID = [SYSTEM_STATUS_TABLE + 1];
+curPID = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 
 //MODE Flag of Current Process
 //set to 7
@@ -31,6 +31,11 @@ phy_pg_num = [PTBR + 2*(userSP-3)/512];
 offset = (userSP-3)%512;
 arg2 = [phy_pg_num*512 + offset];
 
+backup;
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;
+restore;
+
 if (filedescriptor == -1) then
 	
 	backup;
@@ -49,6 +54,12 @@ else
 	UAPN = [PROCESS_TABLE + curPID*16 + 11];
 
 	if ((filedescriptor < 0) || (filedescriptor > 7) || ([UAPN*512 + 496 + 2*filedescriptor] != FILE)) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		[retaddrs] = -1;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
 		SP = userSP;
@@ -69,6 +80,12 @@ else
 	multipop(R5,R6,R7,R7,R8,R9,R10,R11,R12);	
 
 	if (R0 == -1) then
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//coudn't acquire inode
 		[retaddrs] = -1;
 		[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -95,6 +112,12 @@ else
 			R3 = curPID;
 			call MOD_0;
 			restore;
+
+			backup;
+			R1 = RELEASE_LOCK;
+			R2 = KERN_LOCK;
+			call MOD_8;
+			restore;
 				
 			[retaddrs] = -2;
 			[PROCESS_TABLE + curPID*16 + 9] = 0;
@@ -116,7 +139,13 @@ else
 			R3 = curPID;
 			call MOD_0;
 			restore;
-				
+
+			backup;
+			R1 = RELEASE_LOCK;
+			R2 = KERN_LOCK;
+			call MOD_8;
+			restore;
+
 			[retaddrs] = -2;
 			[PROCESS_TABLE + curPID*16 + 9] = 0;
 			SP = userSP;
@@ -154,6 +183,12 @@ else
 	[retaddrs] = 0;	
 
 endif;		
+
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
 
 //Reset MODE FLAG to 0
 [PROCESS_TABLE + (curPID*16) + 9] = 0;

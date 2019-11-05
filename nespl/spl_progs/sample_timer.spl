@@ -1,21 +1,26 @@
 //SAVE UASP IN PROCESS TABLE OF CURRENT PROCESS
-[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16 ) + 13] = SP; 
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16 ) + 13] = SP; 
 
 //SET SP TO KASP
-SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16) + 11] * 512 - 1;
 
 //BACKUP THE PROCESS CONTEXT
 backup;
 
 alias curPID R5;
 
-curPID = [SYSTEM_STATUS_TABLE + 1];
+curPID = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 
 //swapping is initiated
 if ([SYSTEM_STATUS_TABLE + 5] != 0) then
 	//swapping is ongoing
 
-	if ((curPID == SWAPPER_DAEMON) && ([SYSTEM_STATUS_TABLE + 5] == SWAP_OUT)) then
+	if ((curPID == SWAPPER_DAEMON) && ([SYSTEM_STATUS_TABLE + 5] == SWAP_OUT) && (CORE == 0)) then
+		backup;
+		R1 = ACQUIRE_KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//current process is swapper daemon and status swap out
 		//call pager module
 		backup;
@@ -23,14 +28,31 @@ if ([SYSTEM_STATUS_TABLE + 5] != 0) then
 		R2 = curPID;
 		call MOD_6;
 		restore;
+
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
 	else
-		if ((curPID == SWAPPER_DAEMON) && ([SYSTEM_STATUS_TABLE + 5] == SWAP_IN)) then	
+		if ((curPID == SWAPPER_DAEMON) && ([SYSTEM_STATUS_TABLE + 5] == SWAP_IN) && (CORE == 0)) then
+			backup;
+			R1 = ACQUIRE_KERN_LOCK;
+			call MOD_8;
+			restore;
+
 			//current process is swapper daemon and status swap in
 			//call pager module
 			backup;
 			R1 = SWAP_IN;
 			R2 = curPID;
 			call MOD_6;
+			restore;
+	
+			backup;
+			R1 = RELEASE_LOCK;
+			R2 = KERN_LOCK;
+			call MOD_8;
 			restore;
 		endif;
 	endif;
@@ -64,7 +86,7 @@ else
 endif;
 
 //STATE CHANGE RUNNING TO READY
-[PROCESS_TABLE +([SYSTEM_STATUS_TABLE + 1] * 16) + 4] = READY;
+[PROCESS_TABLE +([SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16) + 4] = READY;
 
 //Loop through the Process table entries,
 //and increment the TICk field of each process
@@ -88,9 +110,9 @@ call MOD_5;
 restore;
 
 //SET SP TO UASP
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16) + 13];
 
 //SET MODE FLAG TO 0 OF CUR_PROCS
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0; 
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16) + 9] = 0; 
 
 ireturn;

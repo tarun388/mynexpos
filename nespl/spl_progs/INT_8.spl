@@ -2,7 +2,7 @@
 //-------------------------------------FORK SYSTEM CALL--------------------------------------------------
 
 alias parent_procs_table R4;
-parent_procs_table = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16; 
+parent_procs_table = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 5*CORE + 1] * 16; 
 
 //Mode Flag -----> 8
 [parent_procs_table + 9] = 8;
@@ -13,6 +13,11 @@ alias userSP R5;
 userSP = SP;
 
 SP = [parent_procs_table + 11] * 512 - 1; 
+
+backup;
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;
+restore;
 
 multipush (R4,R5);
 
@@ -214,6 +219,12 @@ else
 
 endif;
 	
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
+
 SP = userSP;
 
 [parent_procs_table + 9] = 0;	

@@ -210,12 +210,13 @@ if (functionNum == KILL_ALL) then
 
 	alias pid R6;
 	//pid 0 and pid 1 are of idle and init
+	// pid 14 of idle2
 	//which shouldn,t be killed
 	pid = 2;
 	
 	while (pid < MAX_PROC_NUM) do
 
-		if ((pid != SWAPPER_DAEMON) && (pid != curPID) && ([PROCESS_TABLE + pid*16 + 4] != TERMINATED)) then
+		if ((pid != SWAPPER_DAEMON) && (pid != curPID) && ([PROCESS_TABLE + pid*16 + 4] != TERMINATED) && (pid != 14)) then
 			backup;
 			R1 = EXIT_PROCESS;
 			R2 = pid;

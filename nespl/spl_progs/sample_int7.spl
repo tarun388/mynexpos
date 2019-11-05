@@ -10,7 +10,7 @@ alias retaddrs R8;
 alias word R9;
 alias UAPN R10;
 
-curPID = [SYSTEM_STATUS_TABLE + 1];
+curPID = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 
 //set mode flag to sys call number 5 for write
 [PROCESS_TABLE + (curPID * 16) + 9] = 5;
@@ -36,6 +36,11 @@ phy_pg_num = [PTBR + 2*(userSP-3)/512];
 offset = (userSP-3)%512;
 word = [phy_pg_num*512 + offset];
 
+backup;
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;
+restore;
+
 //------------------written to STDOUT---------------------------------
 if (filedesc == -2) then
 
@@ -44,6 +49,12 @@ if (filedesc == -2) then
 	R2 = curPID;				//PID of the current process in reg2
 	R3 = word;				//word to be printed to the terminal in reg3
 	call MOD_4;	
+	restore;
+
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
 	restore;
 
 	//success
@@ -59,6 +70,12 @@ endif;
 UAPN = [PROCESS_TABLE + curPID*16 + 11];
 
 if ((filedesc < 0) || (filedesc > 7) || ([UAPN*512 + 496 + 2*filedesc] != FILE)) then
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	restore;
+
 	//file descriptor invalid or no open file corresponding
 	//to this file descriptor	
 	[retaddrs] = -1;
@@ -76,6 +93,12 @@ openindex = [UAPN*512 + 496 + 2*filedesc + 1];
 inodeindex = [OPEN_FILE_TABLE + 4*openindex];
 
 if (([PROCESS_TABLE + curPID*16 + 3] != 1) && ([PROCESS_TABLE + curPID*16 + 3] != [INODE_TABLE + 16*inodeindex + 3]) && ([INODE_TABLE + inodeindex*16 + 4] == EXCLUSIVE)) then
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	restore;
+
 	//current user is not root
 	//and current user does not own the file
 	//and exclusive permission is set
@@ -93,6 +116,12 @@ call MOD_0;
 multipop(R5,R6,R7,R8,R9,R10,R11,R12);
 
 if (R0 == -1) then
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
+	backup;
+
 	//acquiring inode failed
 	[retaddrs] = -1;
 	SP = userSP;
@@ -110,6 +139,12 @@ if (lseek == MAX_FILE_SIZE) then
 	R2 = inodeindex;
 	R3 = curPID;
 	call MOD_0;
+	restore;
+
+	backup;
+	R1 = RELEASE_LOCK;
+	R2 = KERN_LOCK;
+	call MOD_8;
 	restore;
 
 	[retaddrs] = -2;
@@ -131,6 +166,12 @@ if ((lseek%512 == 0) && (lseek == [INODE_TABLE + inodeindex*16 + 2])) then
 		R2 = inodeindex;
 		R3 = curPID;
 		call MOD_0;
+		restore;
+
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
 		restore;
 
 		[retaddrs] = -2;
@@ -184,6 +225,12 @@ restore;
 
 //success
 [retaddrs] = 0;
+
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
 
 SP = userSP;
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;

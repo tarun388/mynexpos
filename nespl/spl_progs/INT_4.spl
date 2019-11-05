@@ -7,7 +7,7 @@ alias userSP R7;
 alias sys_call_num R8;
 alias retaddrs R9;
 
-curPID = [SYSTEM_STATUS_TABLE + 1];
+curPID = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 
 userSP = SP;
 [PROCESS_TABLE + curPID*16 + 13] = SP;
@@ -22,6 +22,11 @@ sys_call_num = [phy_pg_num*512 + offset];
 phy_pg_num = [PTBR + 2*(userSP-1)/512];
 offset = (userSP-1)%512;
 retaddrs = phy_pg_num*512 + offset;
+
+backup;
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;
+restore;
 
 if (sys_call_num == INT_CREATE) then
 
@@ -145,6 +150,12 @@ if (sys_call_num == INT_DELETE) then
 				//and
 				//current user does not own file
 				if ((curuserid != 1) && (curuserid != [INODE_TABLE +16*i + 3])) then
+					backup;
+					R1 = RELEASE_LOCK;
+					R2 = KERN_LOCK;
+					call MOD_8;
+					restore;
+
 					[retaddrs] = -1;
 					[PROCESS_TABLE + curPID*16 + 9] = 0;
 					SP = userSP;
@@ -171,6 +182,12 @@ if (sys_call_num == INT_DELETE) then
 				R2 = i;
 				R3 = curPID;
 				call MOD_0;
+				restore;
+
+				backup;
+				R1 = RELEASE_LOCK;
+				R2 = KERN_LOCK;
+				call MOD_8;
 				restore;
 
 				[retaddrs] = -2;
@@ -240,6 +257,12 @@ if (sys_call_num == INT_DELETE) then
 	endif;
 
 endif; 
+
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
 
 [PROCESS_TABLE + curPID*16 + 9] = 0;
 

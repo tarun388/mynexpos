@@ -47,16 +47,10 @@ if (sys_call_num == INT_NEWUSR) then
 	//current user should be root
 	//and current process should be shell
 	if (([SYSTEM_STATUS_TABLE] != 1) || (curPID != 2)) then
-		backup;		
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -2;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+		
+		goto L1;
 	endif;
 	
 	alias freeentry R12;
@@ -67,16 +61,10 @@ if (sys_call_num == INT_NEWUSR) then
 	while (userid < MAX_USER_NUM) do
 		//such a user already exist
 		if ([USER_TABLE + userid*2] == username) then
-			backup;
-			R1 = RELEASE_LOCK;
-			R2 = KERN_LOCK;
-			call MOD_8;
-			restore;
 		
 			[retaddrs] = -1;
-			[PROCESS_TABLE + curPID*16 + 9] = 0;
-			SP = userSP;
-			ireturn;
+
+			goto L1;
 		endif;
 		//search for a free entry
 		if (([USER_TABLE + userid*2] == -1) && (freeentry == -1)) then
@@ -87,16 +75,10 @@ if (sys_call_num == INT_NEWUSR) then
 
 	//no free entry
 	if (freeentry == -1) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -3;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 
 	userid = freeentry;
@@ -108,17 +90,8 @@ if (sys_call_num == INT_NEWUSR) then
 	//password
 	[USER_TABLE + userid*2 + 1] = password;
 
-	backup;
-	R1 = RELEASE_LOCK;
-	R2 = KERN_LOCK;
-	call MOD_8;
-	restore;
-
 	//success
 	[retaddrs] = 0;
-	[PROCESS_TABLE + curPID*16 + 9] = 0;
-	SP = userSP;
-	ireturn;
 
 endif;
 
@@ -134,30 +107,18 @@ if (sys_call_num == INT_REMUSR) then
 	//current user should be root
 	//and current process should be shell
 	if ([SYSTEM_STATUS_TABLE] != 1 || (curPID != 2)) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		backup;
 
 		[retaddrs] = -2;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 
 	//cannot remove root and kernel
 	if ((username == "root") || (username == "kernel")) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -2;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 	
 	//find the userid of the user
@@ -171,16 +132,10 @@ if (sys_call_num == INT_REMUSR) then
 
 	//this user doesn't exist
 	if (userid >= MAX_USER_NUM) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -1;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 
 	alias i R11;
@@ -188,16 +143,10 @@ if (sys_call_num == INT_REMUSR) then
 	while (i < MAX_FILE_NUM) do
 		//exit ,if this user is the owner of atleast one file
 		if (([ROOT_FILE + i*8] != -1) && ([ROOT_FILE + i*8 + 3] == username)) then
-			backup;
-			R1 = RELEASE_LOCK;
-			R2 = KERN_LOCK;
-			call MOD_8;
-			restore;
 
 			[retaddrs] = -3;
-			[PROCESS_TABLE + curPID*16 + 9] = 0;
-			SP = userSP;
-			ireturn;
+
+			goto L1;
 		endif;
 		i = i+1;
 	endwhile;
@@ -207,17 +156,8 @@ if (sys_call_num == INT_REMUSR) then
 	[USER_TABLE + userid*2] = -1;
 	[USER_TABLE + userid*2 + 1] = -1;
 
-	backup;
-	R1 = RELEASE_LOCK;
-	R2 = KERN_LOCK;
-	call MOD_8;
-	restore;
-
 	//success
 	[retaddrs] = 0;
-	[PROCESS_TABLE + curPID*16 + 9] = 0;
-	SP = userSP;
-	ireturn;
 
 endif;
 
@@ -237,16 +177,10 @@ if (sys_call_num == INT_SETPWD) then
 
 	//current process should be shell
 	if (curPID != 2) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -1;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 
 	//find the userid of the user
@@ -260,32 +194,20 @@ if (sys_call_num == INT_SETPWD) then
 
 	//this user doesn't exist
 	if (userid >= MAX_USER_NUM) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -2;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;	
 	endif;
 	
 	//userid of process not equal to whom we want to change
 	if ([PROCESS_TABLE + curPID*16 + 3] != userid) then
 		//cur user not root
 		if ([SYSTEM_STATUS_TABLE] != 1) then
-			backup;
-			R1 = RELEASE_LOCK;
-			R2 = KERN_LOCK;
-			call MOD_8;
-			restore;			
 
 			[retaddrs] = -1;
-			[PROCESS_TABLE + curPID*16 + 9] = 0;
-			SP = userSP;
-			ireturn;
+
+			goto L1;
 		endif;
 	endif;
 
@@ -294,17 +216,8 @@ if (sys_call_num == INT_SETPWD) then
 	//set the new password in user table
 	[USER_TABLE + userid*2 + 1] = password;
 
-	backup;
-	R1 = RELEASE_LOCK;
-	R2 = KERN_LOCK;
-	call MOD_8;
-	restore;
-
 	//success
 	[retaddrs] = 0;
-	[PROCESS_TABLE + curPID*16 + 9] = 0;
-	SP = userSP;
-	ireturn;
 
 endif;
 
@@ -321,31 +234,16 @@ if (sys_call_num == INT_GETUID) then
 	userid = 0;
 	while (userid < MAX_USER_NUM) do
 		if ([USER_TABLE + userid*2] == username) then
-			backup;
-			R1 = RELEASE_LOCK;
-			R2 = KERN_LOCK;
-			call MOD_8;
-			restore;
 
 			[retaddrs] = userid;
-			[PROCESS_TABLE + curPID*16 + 9] = 0;
-			SP = userSP;
-			ireturn;
+
+			goto L1;
 		endif;
 		userid = userid + 1;
 	endwhile;
 
-	backup;
-	R1 = RELEASE_LOCK;
-	R2 = KERN_LOCK;
-	call MOD_8;
-	restore;
-
 	//user does not exist
 	[retaddrs] = -1;
-	[PROCESS_TABLE + curPID*16 + 9] = 0;
-	SP = userSP;
-	ireturn;
 
 endif; 
 
@@ -360,45 +258,36 @@ if (sys_call_num == INT_GETUNAME) then
 
 	//invalid userid
 	if ((userid < 0) || (userid >= MAX_USER_NUM)) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -1;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 
 	//corresponding entry invalid
 	if ([USER_TABLE + userid*2] == -1) then
-		backup;
-		R1 = RELEASE_LOCK;
-		R2 = KERN_LOCK;
-		call MOD_8;
-		restore;
 
 		[retaddrs] = -1;
-		[PROCESS_TABLE + curPID*16 + 9] = 0;
-		SP = userSP;
-		ireturn;
+
+		goto L1;
 	endif;
 
 	//fetch username
 	username = [USER_TABLE + userid*2];
 
-	backup;
-	R1 = RELEASE_LOCK;
-	R2 = KERN_LOCK;
-	call MOD_8;
-	restore;
-
 	//return username
 	[retaddrs] = username;
-	[PROCESS_TABLE + curPID*16 + 9] = 0;
-	SP = userSP;
-	ireturn;
 
 endif;
+
+L1:
+
+backup;
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+restore;
+
+[PROCESS_TABLE + curPID*16 + 9] = 0;
+SP = userSP;
+ireturn;

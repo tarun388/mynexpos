@@ -1,4 +1,5 @@
-load --os $HOME/mynexpos/nespl/spl_progs/final_os_startup.xsm
+load --os=primary $HOME/mynexpos/nespl/spl_progs/final_os_startup.xsm
+load --os=secondary $HOME/mynexpos/nespl/spl_progs/sec_boot.xsm
 load --init $HOME/mynexpos/expl/expl_progs/login.xsm
 load --idle $HOME/mynexpos/expl/expl_progs/idle.xsm
 load --shell $HOME/mynexpos/expl/expl_progs/extended_shell.xsm

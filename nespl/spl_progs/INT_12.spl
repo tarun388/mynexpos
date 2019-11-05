@@ -26,6 +26,18 @@ if (curPID != 2)  then
 	ireturn;
 endif;
 
+//logout status set
+[SYSTEM_STATUS_TABLE + 7] = 1;
+
+while ([SYSTEM_STATUS_TABLE + 6] != 14) do
+	
+	//wait until secondary core schedules idle2
+	backup;
+	call MOD_5;
+	restore;
+
+endwhile;
+
 backup;
 R1 = ACQUIRE_KERN_LOCK;
 call MOD_8;
@@ -39,6 +51,8 @@ R2 = curPID;
 call MOD_1;
 restore;
 
+//reset logout status
+[SYSTEM_STATUS_TABLE + 7] = 0; 
 
 //state of current process as terminated
 [PROCESS_TABLE + curPID*16 + 4] = TERMINATED;
