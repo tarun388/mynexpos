@@ -112,10 +112,10 @@ endwhile;
 
 //-----------------------------------------------------------------------
 breakpoint;
-start;
+//start;
 
 SP = 8*512;
-[SYSTEM_STATUS_TABLE + 5*CORE + 1] = 0;		//CURRENT PID
+[SYSTEM_STATUS_TABLE + 1] = 0;		//CURRENT PID
 PTBR = PAGE_TABLE_BASE;
 PTLR = 10;
 ireturn;

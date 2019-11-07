@@ -62,3 +62,5 @@ load --exec $HOME/mynexpos/expl/expl_progs/merge.xsm
 load --exec $HOME/mynexpos/expl/expl_progs/m_store.xsm
 load --exec $HOME/mynexpos/expl/expl_progs/m_sort.xsm
 load --exec $HOME/mynexpos/expl/expl_progs/m_merge.xsm
+load --data $HOME/mynexpos/sample.dat
+load --data $HOME/mynexpos/numbers.dat

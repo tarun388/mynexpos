@@ -13,7 +13,14 @@ if (functionNum == GET_FREE_PAGE) then
 	
 		[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 4] = WAIT_MEM;		
 		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+
 		call MOD_5;
+
+		R1 = ACQUIRE_KERN_LOCK;
+		call MOD_8;
 		restore;
 
 	endwhile;

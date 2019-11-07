@@ -9,11 +9,7 @@ restore;
 //CUR PROCS ID
 //depending which core is executing
 alias cur_pid R0;
-if (CORE == 0) then
-	cur_pid = [SYSTEM_STATUS_TABLE + 1];
-else	
-	cur_pid = [SYSTEM_STATUS_TABLE + 6];
-endif;
+cur_pid = [SYSTEM_STATUS_TABLE + 5*CORE + 1];
 
 //PUSH BP ONTO KERNEL STACK
 multipush (BP);
@@ -107,18 +103,19 @@ PTLR = [PROCESS_TABLE + new_pid*16 + 15];
 //if CREATED, change state to running and SP to UASP then return back to user process
 if( [PROCESS_TABLE + new_pid*16 + 4] == CREATED) then
 
-	SP = [PROCESS_TABLE + new_pid*16 + 13];
-	BP = [[PROCESS_TABLE + new_pid * 16 + 11] * 512];		//BP set to previously saved BP value on top of kernel stack during fork system call
-
-	[PROCESS_TABLE + new_pid*16 + 4] = RUNNING;
-	[PROCESS_TABLE + new_pid*16 + 9] = 0;
-
 	//release sched lock
 	backup;
 	R1 = RELEASE_LOCK;
 	R2 = SCHED_LOCK;
 	call MOD_8;
 	restore;
+
+	SP = [PROCESS_TABLE + new_pid*16 + 13];
+	BP = [[PROCESS_TABLE + new_pid * 16 + 11] * 512];		//BP set to previously saved BP value on top of kernel stack during fork system call
+
+	[PROCESS_TABLE + new_pid*16 + 4] = RUNNING;
+	[PROCESS_TABLE + new_pid*16 + 9] = 0;
+
 
 	ireturn;
 endif;

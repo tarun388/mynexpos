@@ -17,8 +17,20 @@ if (functionNum == ACQUIRE_BUFFER) then
 	while ([BUFFER_TABLE + buffno*4 + 2] != -1) do
 		[PROCESS_TABLE + curPID*16 + 4] = WAIT_BUFFER;
 		[PROCESS_TABLE + curPID*16 + 5] = buffno;
+
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		backup;
 		call MOD_5;
+		restore;
+
+		backup;
+		R1 = ACQUIRE_KERN_LOCK;
+		call MOD_8;
 		restore;
 	endwhile;
 
@@ -70,7 +82,18 @@ if (functionNum == ACQUIRE_DISK) then
 		[PROCESS_TABLE + (currentPID * 16) + 4] = WAIT_DISK;
 
 		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
+		backup;
 		call MOD_5;
+		restore;
+
+		backup;
+		R1 = ACQUIRE_KERN_LOCK;
+		call MOD_8;
 		restore;
 
 	endwhile;
@@ -97,9 +120,21 @@ if (functionNum == ACQUIRE_INODE) then
 		//wait list the process
 		[PROCESS_TABLE + curPID*16 + 4] = WAIT_FILE;
 		[PROCESS_TABLE + curPID*16 + 5] = inodeindex;
+
+		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
+		restore;
+
 		//context switch
 		backup;
 		call MOD_5;
+		restore;
+
+		backup;
+		R1 = ACQUIRE_KERN_LOCK;
+		call MOD_8;
 		restore;
 	endwhile;
 
@@ -223,9 +258,14 @@ if (functionNum == 8) then
 	while ([TERMINAL_STATUS_TABLE] == 1) do
 		[PROCESS_TABLE + currentPID*16 + 4] = WAIT_TERMINAL;		//change the state of the current process in its process table entry to WAIT_TERMINAL
 		backup;
+		R1 = RELEASE_LOCK;
+		R2 = KERN_LOCK;
+		call MOD_8;
 
 		call MOD_5;
 
+		R1 = ACQUIRE_KERN_LOCK;
+		call MOD_8;
 		restore;
 
 	endwhile;

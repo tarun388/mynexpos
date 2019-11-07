@@ -11,7 +11,7 @@ if (functionNum == ACQUIRE_KERN_LOCK) then
 	//chck for secondary core
 	if (CORE == SECONDARY_CORE) then
 		//paging on or logut initiated on primary core
-		if (([SYSTEM_STATUS_TABLE + 5] == 1) || ([SYSTEM_STATUS_TABLE + 7] != 0)) then
+		if (([SYSTEM_STATUS_TABLE + 5] != 0) || ([SYSTEM_STATUS_TABLE + 7] != 0)) then
 			//set state of current process to ready
 			[PROCESS_TABLE + (curPID2*16) + 4] = READY;
 
@@ -28,6 +28,7 @@ if (functionNum == ACQUIRE_KERN_LOCK) then
 		continue;
 	endwhile;
 
+//print(KERN_LOCK);
 	return;
 endif;
 
@@ -39,6 +40,7 @@ if (functionNum == ACQUIRE_SCHED_LOCK) then
 		continue;
 	endwhile;
 
+//print(SCHED_LOCK);
 	return;
 endif;
 
@@ -47,6 +49,7 @@ if (functionNum == RELEASE_LOCK) then
 	alias LockVarAddress R2;
 	//set 0 to the address
 	[LockVarAddress] = 0;
-
+//print(R2);
+//print([R2]);
 	return;	
 endif;
